@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill Creator Tool - Multi-App</title>
+<link rel="stylesheet" href="/style.css">
+<!-- CodeMirror 6: locally bundled to avoid duplicate @codemirror/state instances -->
+<script src="/cm-bundle.min.js"></script>
+</head>
+<body>
+<div id="app" class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="icon">⚡</div>
+        <div>
+          <div>Skill Creator</div>
+          <div style="font-size:11px;color:var(--text-dim);font-weight:400">Multi-App Deploy</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">概览</div>
+        <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
+          <span class="nav-icon">📊</span> 仪表盘
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">技能管理</div>
+        <div class="nav-item" data-page="skills" onclick="navigateTo('skills')">
+          <span class="nav-icon">🧩</span> 技能列表 <span class="badge" id="skillCount">0</span>
+        </div>
+        <div class="nav-item" data-page="create" onclick="navigateTo('create')">
+          <span class="nav-icon">✨</span> 创建技能
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">工具</div>
+        <div class="nav-item" data-page="package" onclick="navigateTo('package')">
+          <span class="nav-icon">📦</span> 打包发布
+        </div>
+        <div class="nav-item" data-page="deploy" onclick="navigateTo('deploy')">
+          <span class="nav-icon">🚀</span> 部署管理
+        </div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      📂 <span id="currentDir" style="font-family:var(--font-mono);font-size:11px">~/.workbuddy/skills</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="main-header">
+      <h1 id="pageTitle">仪表盘</h1>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="dir-switcher" id="dirSwitcher">
+          <button class="dir-switcher-btn" onclick="toggleDirSwitcher()" title="快速切换技能目录">
+            <span id="dirSwitcherIcon">🤖</span>
+            <span id="dirSwitcherLabel">CodeBuddy</span>
+            <span class="dir-switcher-arrow">▾</span>
+          </button>
+          <div class="dir-switcher-dropdown" id="dirSwitcherDropdown">
+            <div class="dir-switcher-section-title">快捷目录</div>
+            <div class="dir-switcher-item active" data-app="codebuddy" onclick="switchAppDir('codebuddy')">
+              <span class="dir-switcher-item-icon">🤖</span>
+              <div class="dir-switcher-item-info">
+                <div class="dir-switcher-item-name">CodeBuddy</div>
+                <div class="dir-switcher-item-path">~/.codebuddy/skills</div>
+              </div>
+              <span class="dir-switcher-item-check">✓</span>
+            </div>
+            <div class="dir-switcher-item" data-app="workbuddy" onclick="switchAppDir('workbuddy')">
+              <span class="dir-switcher-item-icon">⚡</span>
+              <div class="dir-switcher-item-info">
+                <div class="dir-switcher-item-name">WorkBuddy</div>
+                <div class="dir-switcher-item-path">~/.workbuddy/skills</div>
+              </div>
+              <span class="dir-switcher-item-check">✓</span>
+            </div>
+            <div class="dir-switcher-item" data-app="claudecode" onclick="switchAppDir('claudecode')">
+              <span class="dir-switcher-item-icon">🧠</span>
+              <div class="dir-switcher-item-info">
+                <div class="dir-switcher-item-name">Claude Code</div>
+                <div class="dir-switcher-item-path">~/.claude/rules</div>
+              </div>
+              <span class="dir-switcher-item-check">✓</span>
+            </div>
+            <div class="dir-switcher-divider"></div>
+            <div class="dir-switcher-item" onclick="showDirBrowser();closeDirSwitcher()">
+              <span class="dir-switcher-item-icon">📂</span>
+              <div class="dir-switcher-item-info">
+                <div class="dir-switcher-item-name">自定义目录...</div>
+                <div class="dir-switcher-item-path">浏览文件系统选择目录</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="theme-switcher" id="themeSwitcher">
+          <button class="theme-switcher-btn" onclick="toggleThemeSwitcher()" title="切换主题">
+            <span id="themeIcon">🌙</span>
+          </button>
+          <div class="theme-switcher-dropdown" id="themeSwitcherDropdown">
+            <div class="theme-option active" data-theme="dark" onclick="switchTheme('dark')">
+              <span class="theme-preview dark-preview"></span>
+              <span>深邃暗色</span>
+              <span class="theme-check">✓</span>
+            </div>
+            <div class="theme-option" data-theme="light" onclick="switchTheme('light')">
+              <span class="theme-preview light-preview"></span>
+              <span>清爽亮色</span>
+              <span class="theme-check">✓</span>
+            </div>
+            <div class="theme-option" data-theme="purple" onclick="switchTheme('purple')">
+              <span class="theme-preview purple-preview"></span>
+              <span>赛博紫</span>
+              <span class="theme-check">✓</span>
+            </div>
+            <div class="theme-option" data-theme="ocean" onclick="switchTheme('ocean')">
+              <span class="theme-preview ocean-preview"></span>
+              <span>深海蓝</span>
+              <span class="theme-check">✓</span>
+            </div>
+            <div class="theme-option" data-theme="forest" onclick="switchTheme('forest')">
+              <span class="theme-preview forest-preview"></span>
+              <span>森林绿</span>
+              <span class="theme-check">✓</span>
+            </div>
+            <div class="theme-option" data-theme="sunset" onclick="switchTheme('sunset')">
+              <span class="theme-preview sunset-preview"></span>
+              <span>暖日落</span>
+              <span class="theme-check">✓</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-sm" onclick="refreshSkills()">🔄 刷新</button>
+      </div>
+    </header>
+    <div class="main-content" id="mainContent"></div>
+  </main>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<script src="/app.js"></script>
+</body>
+</html>

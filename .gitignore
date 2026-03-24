@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output (can be rebuilt with esbuild)
+# dist/
+
+# IDE & editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# WorkBuddy local data
+.workbuddy/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
