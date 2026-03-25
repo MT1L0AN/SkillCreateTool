@@ -193,9 +193,9 @@ function navigateTo(page, params) {
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
   if(nav) nav.classList.add('active');
-  const titles = {dashboard:'仪表盘',skills:'技能列表',create:'创建技能',edit:'编辑技能',detail:'技能详情',package:'打包发布',deploy:'部署管理'};
+  const titles = {dashboard:'仪表盘',skills:'技能列表',create:'创建技能',edit:'编辑技能',detail:'技能详情',package:'打包发布',deploy:'部署管理',download:'下载桌面版'};
   document.getElementById('pageTitle').textContent = titles[page]||page;
-  const r = {dashboard:renderDashboard,skills:renderSkillList,create:renderCreateWizard,edit:()=>renderEditSkill(params),detail:()=>renderSkillDetail(params),package:renderPackagePage,deploy:renderDeployPage};
+  const r = {dashboard:renderDashboard,skills:renderSkillList,create:renderCreateWizard,edit:()=>renderEditSkill(params),detail:()=>renderSkillDetail(params),package:renderPackagePage,deploy:renderDeployPage,download:renderDownloadPage};
   if(r[page]) r[page]();
 }
 
@@ -223,6 +223,10 @@ async function init() {
     if (item) item.textContent = t.userDir.replace(S.config.homeDir, '~');
   }
   document.getElementById('currentDir').textContent = S.currentDir.replace(S.config.homeDir, '~');
+  if (S.config.isElectron) {
+    const dlNav = document.getElementById('navDownloadSection');
+    if (dlNav) dlNav.style.display = 'none';
+  }
   await refreshSkills();
   navigateTo('dashboard');
 }
@@ -983,6 +987,187 @@ async function browseTgt() {
     document.getElementById('w_target').value = curPath;
   });
   await browse(curPath);
+}
+
+// ============== Download Page ==============
+function renderDownloadPage() {
+  const version = '1.0.0';
+  document.getElementById('mainContent').innerHTML = `
+    <div class="download-page">
+      <!-- Hero Banner / Poster -->
+      <div class="download-hero">
+        <div class="download-hero-bg">
+          <div class="hero-orb hero-orb-1"></div>
+          <div class="hero-orb hero-orb-2"></div>
+          <div class="hero-orb hero-orb-3"></div>
+        </div>
+        <div class="download-hero-content">
+          <div class="download-hero-badge">
+            <span class="badge-dot"></span>
+            <span>Desktop App v${version}</span>
+          </div>
+          <h1 class="download-hero-title">
+            Skill Creator Tool
+            <span class="title-highlight">桌面版</span>
+          </h1>
+          <p class="download-hero-subtitle">
+            脱离浏览器独立运行，原生窗口体验，一键管理你的 AI 技能
+          </p>
+          <div class="download-hero-features">
+            <div class="hero-feature">
+              <div class="hero-feature-icon">${IC.thunder}</div>
+              <div>
+                <div class="hero-feature-title">即开即用</div>
+                <div class="hero-feature-desc">双击启动，无需命令行</div>
+              </div>
+            </div>
+            <div class="hero-feature">
+              <div class="hero-feature-icon">${IC.laptop}</div>
+              <div>
+                <div class="hero-feature-title">原生体验</div>
+                <div class="hero-feature-desc">独立窗口，系统菜单</div>
+              </div>
+            </div>
+            <div class="hero-feature">
+              <div class="hero-feature-icon">${IC.rocket}</div>
+              <div>
+                <div class="hero-feature-title">完整功能</div>
+                <div class="hero-feature-desc">与 Web 版功能完全一致</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Download Cards -->
+      <div class="download-section">
+        <div class="section-title" style="font-size:18px;margin-bottom:20px">${IC.download} 选择你的平台</div>
+        <div class="download-platforms">
+          <a href="https://github.com/MT1L0AN/SkillCreateTool/releases/latest/download/Skill-Creator-Tool-mac-arm64.dmg"
+             class="download-platform-card" target="_blank" rel="noopener">
+            <div class="platform-icon-wrap mac">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+              </svg>
+            </div>
+            <div class="platform-info">
+              <div class="platform-name">macOS</div>
+              <div class="platform-detail">Apple Silicon (M1/M2/M3)</div>
+              <div class="platform-file">.dmg 安装包</div>
+            </div>
+            <div class="platform-download-btn">
+              ${IC.download}
+              <span>下载</span>
+            </div>
+          </a>
+          <a href="https://github.com/MT1L0AN/SkillCreateTool/releases/latest/download/Skill-Creator-Tool-mac-x64.dmg"
+             class="download-platform-card" target="_blank" rel="noopener">
+            <div class="platform-icon-wrap mac">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+              </svg>
+            </div>
+            <div class="platform-info">
+              <div class="platform-name">macOS</div>
+              <div class="platform-detail">Intel 处理器</div>
+              <div class="platform-file">.dmg 安装包</div>
+            </div>
+            <div class="platform-download-btn">
+              ${IC.download}
+              <span>下载</span>
+            </div>
+          </a>
+          <a href="https://github.com/MT1L0AN/SkillCreateTool/releases/latest/download/Skill-Creator-Tool-Setup.exe"
+             class="download-platform-card" target="_blank" rel="noopener">
+            <div class="platform-icon-wrap win">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 12V6.75l8-1.25V12H3zm0 .5h8v6.5l-8-1.25V12.5zM11.5 12V5.35l9.5-1.6V12H11.5zm0 .5H21v6.75l-9.5 1.6V12.5z"/>
+              </svg>
+            </div>
+            <div class="platform-info">
+              <div class="platform-name">Windows</div>
+              <div class="platform-detail">64-bit (x64)</div>
+              <div class="platform-file">.exe 安装包</div>
+            </div>
+            <div class="platform-download-btn">
+              ${IC.download}
+              <span>下载</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Feature Showcase -->
+      <div class="download-section">
+        <div class="section-title" style="font-size:18px;margin-bottom:20px">${IC.star} 为什么选择桌面版</div>
+        <div class="feature-showcase">
+          <div class="showcase-card">
+            <div class="showcase-icon blue">${IC.thunder}</div>
+            <h3>开箱即用</h3>
+            <p>安装后双击图标即可启动，不再需要打开终端输入 <code>npm start</code>，服务自动在后台运行</p>
+          </div>
+          <div class="showcase-card">
+            <div class="showcase-icon green">${IC.laptop}</div>
+            <h3>原生窗口</h3>
+            <p>独立的系统窗口，支持 macOS/Windows 原生菜单栏、快捷键和窗口管理，告别浏览器标签页</p>
+          </div>
+          <div class="showcase-card">
+            <div class="showcase-icon purple">${IC.puzzle}</div>
+            <h3>功能完整</h3>
+            <p>与 Web 版完全一致的功能体验——技能创建、编辑、打包、多平台部署，一个都不少</p>
+          </div>
+          <div class="showcase-card">
+            <div class="showcase-icon orange">${IC.setting}</div>
+            <h3>自动端口</h3>
+            <p>内嵌 Express 服务器智能探测可用端口，避免端口冲突，多实例也能愉快共存</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Requirements -->
+      <div class="download-section">
+        <div class="ant-card">
+          <div class="ant-card-body">
+            <div class="section-title">${IC.info} 系统要求 & 安装说明</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+              <div>
+                <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+                  macOS
+                </h4>
+                <ul style="list-style:none;font-size:13px;color:var(--text-secondary);line-height:2">
+                  <li>macOS 10.15 (Catalina) 或更高版本</li>
+                  <li>支持 Apple Silicon (M1/M2/M3) 和 Intel</li>
+                  <li>下载 .dmg → 拖入 Applications 文件夹</li>
+                  <li>首次打开若提示不安全 → 系统偏好设置 → 安全性 → 仍然打开</li>
+                </ul>
+              </div>
+              <div>
+                <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12V6.75l8-1.25V12H3zm0 .5h8v6.5l-8-1.25V12.5zM11.5 12V5.35l9.5-1.6V12H11.5zm0 .5H21v6.75l-9.5 1.6V12.5z"/></svg>
+                  Windows
+                </h4>
+                <ul style="list-style:none;font-size:13px;color:var(--text-secondary);line-height:2">
+                  <li>Windows 10 或更高版本 (64-bit)</li>
+                  <li>下载 .exe → 双击运行安装向导</li>
+                  <li>支持自定义安装目录</li>
+                  <li>安装完成后自动创建桌面快捷方式</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Version Info -->
+      <div class="download-version-bar">
+        <span>当前版本 v${version}</span>
+        <span style="color:var(--text-quaternary)">·</span>
+        <a href="https://github.com/MT1L0AN/SkillCreateTool/releases" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">查看所有版本</a>
+        <span style="color:var(--text-quaternary)">·</span>
+        <a href="https://github.com/MT1L0AN/SkillCreateTool" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">GitHub 仓库</a>
+      </div>
+    </div>`;
 }
 
 // Init

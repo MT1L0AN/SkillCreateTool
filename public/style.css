@@ -833,6 +833,214 @@ body.theme-transitioning *::after{transition:background-color 0.3s ease,color 0.
 .code-editor .cm-editor-wrap,.code-editor > div:not(.code-editor-header){border:none;border-radius:0}
 
 /* ========================================
+   Download Page
+   ======================================== */
+.download-page { max-width: 900px; margin: 0 auto; }
+.download-section { margin-bottom: 32px; }
+
+/* Hero Banner */
+.download-hero {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-bottom: 32px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+.download-hero-bg {
+  position: absolute; inset: 0;
+  overflow: hidden;
+}
+.hero-orb {
+  position: absolute; border-radius: 50%;
+  filter: blur(80px); opacity: 0.15;
+  animation: orbFloat 8s ease-in-out infinite;
+}
+.hero-orb-1 {
+  width: 300px; height: 300px;
+  background: var(--accent);
+  top: -80px; right: -60px;
+  animation-delay: 0s;
+}
+.hero-orb-2 {
+  width: 200px; height: 200px;
+  background: var(--purple);
+  bottom: -40px; left: 10%;
+  animation-delay: -3s;
+}
+.hero-orb-3 {
+  width: 150px; height: 150px;
+  background: var(--success);
+  top: 30%; left: 50%;
+  animation-delay: -5s;
+}
+@keyframes orbFloat {
+  0%,100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(15px, -20px) scale(1.05); }
+  66% { transform: translate(-10px, 10px) scale(0.95); }
+}
+
+.download-hero-content {
+  position: relative; z-index: 1;
+  padding: 48px 40px 40px;
+}
+.download-hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 14px; border-radius: 20px;
+  background: var(--accent-bg); color: var(--accent);
+  font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
+  margin-bottom: 20px;
+}
+.badge-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.download-hero-title {
+  font-size: 36px; font-weight: 800; line-height: 1.2;
+  letter-spacing: -1px; margin-bottom: 12px;
+}
+.title-highlight {
+  background: var(--logo-gradient);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.download-hero-subtitle {
+  font-size: 16px; color: var(--text-secondary);
+  line-height: 1.6; margin-bottom: 28px;
+  max-width: 540px;
+}
+
+/* Hero Features Row */
+.download-hero-features {
+  display: flex; gap: 24px; flex-wrap: wrap;
+}
+.hero-feature {
+  display: flex; align-items: center; gap: 12px;
+}
+.hero-feature-icon {
+  width: 40px; height: 40px; border-radius: var(--radius-lg);
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0; color: var(--accent);
+}
+.hero-feature-title {
+  font-size: 13px; font-weight: 600; margin-bottom: 1px;
+}
+.hero-feature-desc {
+  font-size: 12px; color: var(--text-tertiary);
+}
+
+/* Platform Download Cards */
+.download-platforms {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+.download-platform-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 28px 20px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-decoration: none; color: var(--text);
+  transition: var(--transition); cursor: pointer;
+  position: relative; overflow: hidden;
+}
+.download-platform-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, var(--accent-bg) 0%, transparent 50%);
+  opacity: 0; transition: opacity 0.3s ease;
+}
+.download-platform-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+}
+.download-platform-card:hover::before { opacity: 1; }
+
+.platform-icon-wrap {
+  position: relative; z-index: 1;
+  width: 60px; height: 60px; border-radius: var(--radius-xl);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; flex-shrink: 0;
+}
+.platform-icon-wrap.mac {
+  background: linear-gradient(135deg, #333, #666);
+  color: #fff;
+}
+.platform-icon-wrap.win {
+  background: linear-gradient(135deg, #0078d4, #00a4ef);
+  color: #fff;
+}
+.platform-info {
+  position: relative; z-index: 1;
+  text-align: center;
+}
+.platform-name {
+  font-size: 18px; font-weight: 700; margin-bottom: 4px;
+}
+.platform-detail {
+  font-size: 13px; color: var(--text-secondary); margin-bottom: 2px;
+}
+.platform-file {
+  font-size: 12px; color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+.platform-download-btn {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 24px; border-radius: var(--radius);
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 500;
+  transition: var(--transition);
+}
+.download-platform-card:hover .platform-download-btn {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 12px rgba(22,104,220,0.3);
+}
+
+/* Feature Showcase */
+.feature-showcase {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+.showcase-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px;
+  transition: var(--transition);
+}
+.showcase-card:hover {
+  border-color: var(--border-secondary);
+  box-shadow: var(--shadow-sm);
+}
+.showcase-icon {
+  width: 44px; height: 44px; border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 14px;
+}
+.showcase-icon.blue { background: var(--accent-bg); color: var(--accent); }
+.showcase-icon.green { background: var(--success-bg); color: var(--success); }
+.showcase-icon.purple { background: var(--purple-bg); color: var(--purple); }
+.showcase-icon.orange { background: var(--warning-bg); color: var(--warning); }
+.showcase-card h3 {
+  font-size: 15px; font-weight: 600; margin-bottom: 8px;
+}
+.showcase-card p {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.7;
+}
+.showcase-card code {
+  background: var(--bg-elevated); padding: 1px 5px;
+  border-radius: var(--radius-sm); font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* Version Bar */
+.download-version-bar {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; padding: 16px;
+  font-size: 13px; color: var(--text-tertiary);
+}
+
+/* ========================================
    Responsive
    ======================================== */
 @media(max-width:768px){
@@ -843,4 +1051,9 @@ body.theme-transitioning *::after{transition:background-color 0.3s ease,color 0.
   .skills-grid{grid-template-columns:1fr}
   .deploy-targets{grid-template-columns:1fr}
   .template-grid{grid-template-columns:1fr 1fr}
+  .download-platforms{grid-template-columns:1fr}
+  .feature-showcase{grid-template-columns:1fr}
+  .download-hero-content{padding:32px 24px}
+  .download-hero-title{font-size:26px}
+  .download-hero-features{flex-direction:column;gap:16px}
 }

@@ -9,7 +9,7 @@ const { execSync } = require('child_process');
 const os = require('os');
 
 const app = express();
-const PORT = 9527;
+const PORT = process.env.PORT || 9527;
 
 // Middleware
 app.use(cors());
@@ -272,7 +272,8 @@ app.get('/api/config', (req, res) => {
     userSkillDir: USER_SKILL_DIR,
     distDir: DIST_DIR,
     homeDir: os.homedir(),
-    deployTargets: DEPLOY_TARGETS
+    deployTargets: DEPLOY_TARGETS,
+    isElectron: !!process.env.ELECTRON_RUN
   });
 });
 
@@ -720,9 +721,14 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`\n🚀 Skill Creator Tool 已启动`);
-  console.log(`   地址: http://localhost:${PORT}`);
-  console.log(`   Skills 目录: ${USER_SKILL_DIR}\n`);
-});
+// Export for Electron integration
+module.exports = { app, PORT, USER_SKILL_DIR };
+
+// Start server only when run directly (not imported by Electron)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n🚀 Skill Creator Tool 已启动`);
+    console.log(`   地址: http://localhost:${PORT}`);
+    console.log(`   Skills 目录: ${USER_SKILL_DIR}\n`);
+  });
+}
