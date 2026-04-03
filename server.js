@@ -687,9 +687,23 @@ app.post('/api/browse', (req, res) => {
   }
 
   try {
+    // Check if we can read this directory first
+    fs.accessSync(dir, fs.constants.R_OK);
+  } catch (e) {
+    return res.status(403).json({ error: '无权限访问该目录' });
+  }
+
+  try {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     const items = entries
-      .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+      .filter(e => {
+        if (!e.isDirectory()) return false;
+        if (e.name.startsWith('.')) return false;
+        // Skip known heavy/system directories to avoid slowness
+        const skip = new Set(['node_modules', 'Library', 'System', 'Volumes', 'private', 'cores', 'usr', 'bin', 'sbin', 'var', 'tmp', 'etc']);
+        if (dir === '/' && skip.has(e.name)) return false;
+        return true;
+      })
       .map(e => ({
         name: e.name,
         path: path.join(dir, e.name),
@@ -703,8 +717,240 @@ app.post('/api/browse', (req, res) => {
       items
     });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: '读取目录失败: ' + e.message });
   }
+});
+
+// ============== Project-Level Skills ==============
+
+// In-memory store of registered project skill directories
+// Structure: { "/path/to/project": { name: "my-project", path: "/path/to/project", addedAt: timestamp } }
+const PROJECT_SKILL_DIRS = new Map();
+const PROJECT_DIRS_FILE = path.join(os.homedir(), '.codebuddy', 'skill-creator-projects.json');
+
+// Load saved project dirs on startup
+(function loadProjectDirs() {
+  try {
+    if (fs.existsSync(PROJECT_DIRS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PROJECT_DIRS_FILE, 'utf-8'));
+      if (Array.isArray(data)) {
+        data.forEach(p => PROJECT_SKILL_DIRS.set(p.path, p));
+      }
+    }
+  } catch (e) { /* ignore */ }
+})();
+
+function saveProjectDirs() {
+  try {
+    const dir = path.dirname(PROJECT_DIRS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(PROJECT_DIRS_FILE, JSON.stringify(Array.from(PROJECT_SKILL_DIRS.values()), null, 2), 'utf-8');
+  } catch (e) { /* ignore */ }
+}
+
+// Recursively scan a directory for project-level skill directories
+// A skill dir is identified by having a SKILL.md file inside it
+// Scans `.codebuddy/skills`, `.workbuddy/skills`, `.claude/rules` at each project level
+function scanProjectSkills(rootDir, maxDepth = 5) {
+  const found = []; // { projectDir, projectName, skillSubDirs: [{appId, skillsDir, skills: [...]}] }
+  const skipDirs = new Set(['node_modules', 'dist', 'build', 'release', '.git', '__pycache__', 'vendor', 'target', 'out', 'coverage', 'tmp', 'temp', 'Library', 'Caches', 'Trash']);
+
+  function walk(dir, depth) {
+    if (depth > maxDepth) return;
+    let entries;
+    try {
+      fs.accessSync(dir, fs.constants.R_OK);
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (e) { return; }
+
+    // Check if this directory is a "project" (has .codebuddy/skills or .workbuddy/skills or .claude/rules)
+    const skillSubDirs = [];
+    for (const [appId, target] of Object.entries(DEPLOY_TARGETS)) {
+      const skillsPath = path.join(dir, target.projectSubDir);
+      if (fs.existsSync(skillsPath)) {
+        try {
+          const skillEntries = fs.readdirSync(skillsPath, { withFileTypes: true });
+          const skills = [];
+          for (const se of skillEntries) {
+            if (se.isDirectory()) {
+              const info = getSkillInfo(path.join(skillsPath, se.name));
+              if (info) skills.push(info);
+            }
+          }
+          if (skills.length > 0) {
+            skillSubDirs.push({ appId, appName: target.name, skillsDir: skillsPath, skills });
+          }
+        } catch (e) { /* skip unreadable */ }
+      }
+    }
+
+    // Also check top-level "skills/" directory (for skill repos like Claw)
+    const topSkillsPath = path.join(dir, 'skills');
+    if (fs.existsSync(topSkillsPath)) {
+      try {
+        const stat = fs.statSync(topSkillsPath);
+        if (stat.isDirectory()) {
+          const skillEntries = fs.readdirSync(topSkillsPath, { withFileTypes: true });
+          const skills = [];
+          for (const se of skillEntries) {
+            if (se.isDirectory()) {
+              const info = getSkillInfo(path.join(topSkillsPath, se.name));
+              if (info) skills.push(info);
+            }
+          }
+          if (skills.length > 0) {
+            // Avoid duplicate if skills/ was already matched by a deploy target
+            const alreadyMatched = skillSubDirs.some(s => s.skillsDir === topSkillsPath);
+            if (!alreadyMatched) {
+              skillSubDirs.push({ appId: 'generic', appName: '通用技能仓库', skillsDir: topSkillsPath, skills });
+            }
+          }
+        }
+      } catch (e) { /* skip */ }
+    }
+
+    if (skillSubDirs.length > 0) {
+      found.push({
+        projectDir: dir,
+        projectName: path.basename(dir),
+        skillSubDirs
+      });
+    }
+
+    // Continue scanning subdirectories (skip hidden dirs, node_modules, etc.)
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name.startsWith('.') || skipDirs.has(entry.name)) continue;
+      walk(path.join(dir, entry.name), depth + 1);
+    }
+  }
+
+  walk(rootDir, 0);
+  return found;
+}
+
+// GET /api/project-skills - List all registered project skill directories and their skills
+app.get('/api/project-skills', (req, res) => {
+  const projects = [];
+  for (const [projPath, projInfo] of PROJECT_SKILL_DIRS) {
+    if (!fs.existsSync(projPath)) continue;
+    const skillSubDirs = [];
+    for (const [appId, target] of Object.entries(DEPLOY_TARGETS)) {
+      const skillsPath = path.join(projPath, target.projectSubDir);
+      if (fs.existsSync(skillsPath)) {
+        try {
+          const entries = fs.readdirSync(skillsPath, { withFileTypes: true });
+          const skills = [];
+          for (const e of entries) {
+            if (e.isDirectory()) {
+              const info = getSkillInfo(path.join(skillsPath, e.name));
+              if (info) skills.push(info);
+            }
+          }
+          if (skills.length > 0) {
+            skillSubDirs.push({ appId, appName: target.name, skillsDir: skillsPath, skills });
+          }
+        } catch (e) { /* skip */ }
+      }
+    }
+    // Also check top-level "skills/" directory (for skill repos like Claw)
+    const topSkillsPath = path.join(projPath, 'skills');
+    if (fs.existsSync(topSkillsPath)) {
+      try {
+        const stat = fs.statSync(topSkillsPath);
+        if (stat.isDirectory()) {
+          const entries = fs.readdirSync(topSkillsPath, { withFileTypes: true });
+          const skills = [];
+          for (const e of entries) {
+            if (e.isDirectory()) {
+              const info = getSkillInfo(path.join(topSkillsPath, e.name));
+              if (info) skills.push(info);
+            }
+          }
+          if (skills.length > 0) {
+            const alreadyMatched = skillSubDirs.some(s => s.skillsDir === topSkillsPath);
+            if (!alreadyMatched) {
+              skillSubDirs.push({ appId: 'generic', appName: '通用技能仓库', skillsDir: topSkillsPath, skills });
+            }
+          }
+        }
+      } catch (e) { /* skip */ }
+    }
+    projects.push({
+      ...projInfo,
+      skillSubDirs,
+      totalSkills: skillSubDirs.reduce((sum, s) => sum + s.skills.length, 0)
+    });
+  }
+  res.json({ projects });
+});
+
+// POST /api/project-skills/add - Add a project directory (manual import)
+app.post('/api/project-skills/add', (req, res) => {
+  const { path: dirPath } = req.body;
+  if (!dirPath) return res.status(400).json({ error: '请提供项目目录路径' });
+  if (!fs.existsSync(dirPath)) return res.status(404).json({ error: '目录不存在' });
+
+  // Check if it's a reasonable directory (exists and is a directory)
+  try {
+    const stat = fs.statSync(dirPath);
+    if (!stat.isDirectory()) return res.status(400).json({ error: '指定路径不是目录' });
+  } catch (e) {
+    return res.status(400).json({ error: '无法访问该目录' });
+  }
+
+  // Check for duplicate
+  if (PROJECT_SKILL_DIRS.has(dirPath)) {
+    return res.status(400).json({ error: '该项目目录已添加' });
+  }
+
+  PROJECT_SKILL_DIRS.set(dirPath, { name: path.basename(dirPath), path: dirPath, addedAt: Date.now() });
+  saveProjectDirs();
+  res.json({ success: true, message: `已添加项目: ${path.basename(dirPath)}` });
+});
+
+// POST /api/project-skills/scan - Scan a directory for project-level skills
+app.post('/api/project-skills/scan', (req, res) => {
+  const { path: scanRoot } = req.body;
+  if (!scanRoot) return res.status(400).json({ error: '请提供扫描根目录' });
+  if (!fs.existsSync(scanRoot)) return res.status(404).json({ error: '目录不存在' });
+
+  const results = scanProjectSkills(scanRoot);
+
+  // Auto-register found projects
+  for (const proj of results) {
+    if (!PROJECT_SKILL_DIRS.has(proj.projectDir)) {
+      PROJECT_SKILL_DIRS.set(proj.projectDir, { name: proj.projectName, path: proj.projectDir, addedAt: Date.now() });
+    }
+  }
+  saveProjectDirs();
+
+  res.json({
+    success: true,
+    found: results.length,
+    projects: results,
+    message: `扫描完成，发现 ${results.length} 个包含技能的项目`
+  });
+});
+
+// DELETE /api/project-skills/remove - Remove a project directory from the list
+app.delete('/api/project-skills/remove', (req, res) => {
+  const { path: dirPath } = req.body;
+  if (!dirPath) return res.status(400).json({ error: '请提供项目目录路径' });
+  if (!PROJECT_SKILL_DIRS.has(dirPath)) return res.status(404).json({ error: '该项目未注册' });
+
+  PROJECT_SKILL_DIRS.delete(dirPath);
+  saveProjectDirs();
+  res.json({ success: true, message: `已移除项目: ${path.basename(dirPath)}` });
+});
+
+// GET /api/project-dirs - Get list of project dirs (for deploy dropdown)
+app.get('/api/project-dirs', (req, res) => {
+  const dirs = Array.from(PROJECT_SKILL_DIRS.values()).map(p => ({
+    name: p.name,
+    path: p.path
+  }));
+  res.json({ dirs });
 });
 
 // GET /api/download/:name - Download packaged skill

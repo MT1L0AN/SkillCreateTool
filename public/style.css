@@ -1041,6 +1041,32 @@ body.theme-transitioning *::after{transition:background-color 0.3s ease,color 0.
 }
 
 /* ========================================
+   Project Skills Page
+   ======================================== */
+.project-skill-card {
+  transition: var(--transition);
+}
+.project-skill-card:hover {
+  border-color: var(--purple);
+  box-shadow: var(--shadow-sm);
+}
+.project-skill-card .skill-card {
+  border-color: var(--border);
+}
+.project-skill-card .skill-card:hover {
+  border-color: var(--purple);
+  box-shadow: 0 2px 8px rgba(133,78,202,0.15);
+}
+.project-skill-card .skill-card-icon {
+  background: linear-gradient(135deg, var(--purple), var(--accent));
+}
+.project-skill-card .ant-tag-purple {
+  font-size: 11px;
+  height: 20px;
+  line-height: 20px;
+}
+
+/* ========================================
    Responsive
    ======================================== */
 @media(max-width:768px){

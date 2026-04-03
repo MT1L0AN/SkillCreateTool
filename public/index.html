@@ -37,12 +37,17 @@
         <div class="nav-section-title">技能管理</div>
         <div class="nav-item" data-page="skills" onclick="navigateTo('skills')">
           <svg class="nav-icon" viewBox="0 0 1024 1024" fill="currentColor"><path d="M464 144H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H212V212h200v200zm516-268H624c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H676V212h200v200zM464 544H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H212V612h200v200zm516-268H624c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H676V612h200v200z"/></svg>
-          <span>技能列表</span>
+          <span>全局技能</span>
           <span class="badge" id="skillCount">0</span>
         </div>
         <div class="nav-item" data-page="create" onclick="navigateTo('create')">
           <svg class="nav-icon" viewBox="0 0 1024 1024" fill="currentColor"><path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm192 472c0 4.4-3.6 8-8 8H544v152c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V544H328c-4.4 0-8-3.6-8-8v-48c0-4.4 3.6-8 8-8h152V328c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v152h152c4.4 0 8 3.6 8 8v48z"/></svg>
           <span>创建技能</span>
+        </div>
+        <div class="nav-item" data-page="projectSkills" onclick="navigateTo('projectSkills')">
+          <svg class="nav-icon" viewBox="0 0 1024 1024" fill="currentColor"><path d="M880 298.4H521L403.7 186.2a8.15 8.15 0 0 0-5.5-2.2H144c-17.7 0-32 14.3-32 32v592c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V330.4c0-17.7-14.3-32-32-32zM632 577c0 3.8-3.4 7-7.5 7H399.5c-4.1 0-7.5-3.2-7.5-7v-42c0-3.8 3.4-7 7.5-7h225c4.1 0 7.5 3.2 7.5 7v42z"/></svg>
+          <span>项目技能</span>
+          <span class="badge" id="projectSkillCount" style="background:var(--purple)">0</span>
         </div>
       </div>
       <div class="nav-section">

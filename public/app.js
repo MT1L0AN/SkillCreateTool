@@ -51,7 +51,8 @@ const S = {
   skills: [], currentDir: '', currentPage: 'dashboard',
   editingSkill: null, wizardStep: 0,
   wizardData: {}, config: {}, deployTargets: {},
-  currentApp: 'codebuddy', currentTheme: 'dark'
+  currentApp: 'codebuddy', currentTheme: 'dark',
+  projectSkills: [], projectDirs: []
 };
 
 // ============== API ==============
@@ -188,14 +189,15 @@ function simpleMd(md) {
 }
 
 // ============== Navigation ==============
-function navigateTo(page, params) {
+function navigateTo(page, params, dir) {
   S.currentPage = page;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
   if(nav) nav.classList.add('active');
-  const titles = {dashboard:'仪表盘',skills:'技能列表',create:'创建技能',edit:'编辑技能',detail:'技能详情',package:'打包发布',deploy:'部署管理',download:'下载桌面版'};
+  const titles = {dashboard:'仪表盘',skills:'全局技能',create:'创建技能',edit:'编辑技能',detail:'技能详情',package:'打包发布',deploy:'部署管理',download:'下载桌面版',projectSkills:'项目技能'};
   document.getElementById('pageTitle').textContent = titles[page]||page;
-  const r = {dashboard:renderDashboard,skills:renderSkillList,create:renderCreateWizard,edit:()=>renderEditSkill(params),detail:()=>renderSkillDetail(params),package:renderPackagePage,deploy:renderDeployPage,download:renderDownloadPage};
+  const skillDir = dir ? decodeURIComponent(dir) : null;
+  const r = {dashboard:renderDashboard,skills:renderSkillList,create:renderCreateWizard,edit:()=>renderEditSkill(params),detail:()=>renderSkillDetail(params, skillDir),package:renderPackagePage,deploy:renderDeployPage,download:renderDownloadPage,projectSkills:renderProjectSkillsPage};
   if(r[page]) r[page]();
 }
 
@@ -228,6 +230,7 @@ async function init() {
     if (dlNav) dlNav.style.display = 'none';
   }
   await refreshSkills();
+  await refreshProjectSkills();
   navigateTo('dashboard');
 }
 
@@ -292,16 +295,21 @@ function filterSkills() {
 }
 
 // ============== Skill Detail ==============
-async function renderSkillDetail(name) {
-  const sk = await api.get(`/api/skills/${encodeURIComponent(name)}?dir=${encodeURIComponent(S.currentDir)}`);
+async function renderSkillDetail(name, customDir) {
+  const dir = customDir || S.currentDir;
+  const sk = await api.get(`/api/skills/${encodeURIComponent(name)}?dir=${encodeURIComponent(dir)}`);
   if(sk.error){showToast(sk.error,'error');return;}
   S.editingSkill = sk;
+  S.editingSkillDir = dir;
+  const isProjectSkill = customDir ? true : false;
   document.getElementById('pageTitle').textContent = sk.displayName;
   const mc = document.getElementById('mainContent');
+  const encodedDir = encodeURIComponent(dir);
+  const backPage = isProjectSkill ? 'projectSkills' : 'skills';
   mc.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-      <button class="ant-btn" onclick="navigateTo('skills')">${IC.arrowLeft} 返回</button>
-      <button class="ant-btn ant-btn-primary" onclick="navigateTo('edit','${name}')">${IC.edit} 编辑</button>
+      <button class="ant-btn" onclick="navigateTo('${backPage}')">${IC.arrowLeft} 返回</button>
+      <button class="ant-btn ant-btn-primary" onclick="navigateTo('edit','${name}','${encodedDir}')">${IC.edit} 编辑</button>
       <button class="ant-btn ant-btn-success" onclick="validateAction('${name}')">${IC.checkCircle} 验证</button>
       <button class="ant-btn" onclick="packageAction('${name}')">${IC.box} 打包</button>
       <button class="ant-btn" onclick="deployAction('${name}')">${IC.rocket} 部署</button>
@@ -537,7 +545,8 @@ async function createSkill() {
 
 // ============== Edit Skill ==============
 async function renderEditSkill(name) {
-  const sk = await api.get(`/api/skills/${encodeURIComponent(name)}?dir=${encodeURIComponent(S.currentDir)}`);
+  const dir = S.editingSkillDir || S.currentDir;
+  const sk = await api.get(`/api/skills/${encodeURIComponent(name)}?dir=${encodeURIComponent(dir)}`);
   if(sk.error){showToast(sk.error,'error');return;}
   S.editingSkill = sk;
   document.getElementById('pageTitle').textContent = '编辑 - '+sk.displayName;
@@ -609,8 +618,9 @@ function eTab(t,el) { el.parentElement.querySelectorAll('.ant-tab').forEach(x=>x
 
 async function saveSkill(name) {
   try {
+    const dir = S.editingSkillDir || S.currentDir;
     const bodyContent = S._editBodyCmView ? S._editBodyCmView.state.doc.toString() : S._editSkillBody;
-    const r = await api.put(`/api/skills/${encodeURIComponent(name)}?dir=${encodeURIComponent(S.currentDir)}`, {
+    const r = await api.put(`/api/skills/${encodeURIComponent(name)}?dir=${encodeURIComponent(dir)}`, {
       name:document.getElementById('e_name')?.value, description:document.getElementById('e_desc')?.value,
       description_zh:document.getElementById('e_zh')?.value, description_en:document.getElementById('e_en')?.value,
       allowedTools:document.getElementById('e_tools')?.value, homepage:document.getElementById('e_home')?.value,
@@ -620,7 +630,8 @@ async function saveSkill(name) {
 }
 
 async function editFile(sk,fp) {
-  const d = await api.get(`/api/skills/${encodeURIComponent(sk)}/file?dir=${encodeURIComponent(S.currentDir)}&path=${encodeURIComponent(fp)}`);
+  const dir = S.editingSkillDir || S.currentDir;
+  const d = await api.get(`/api/skills/${encodeURIComponent(sk)}/file?dir=${encodeURIComponent(dir)}&path=${encodeURIComponent(fp)}`);
   if(d.error){showToast(d.error,'error');return;}
   const ext = fp.split('.').pop().toLowerCase();
   const langMap = {py:'python',js:'javascript',json:'json',md:'markdown',yaml:'markdown',yml:'markdown',sh:'markdown',txt:'markdown'};
@@ -629,7 +640,7 @@ async function editFile(sk,fp) {
   showModal('编辑 ' + fp, `<div class="cm-editor-wrap" id="cmEditWrap"></div>`,
     async () => {
       const content = cmView ? cmView.state.doc.toString() : d.content;
-      await api.put(`/api/skills/${encodeURIComponent(sk)}/file?dir=${encodeURIComponent(S.currentDir)}`, {path: fp, content});
+      await api.put(`/api/skills/${encodeURIComponent(sk)}/file?dir=${encodeURIComponent(S.editingSkillDir||S.currentDir)}`, {path: fp, content});
       showToast('已保存','success');
       navigateTo('edit', sk);
     }
@@ -643,7 +654,7 @@ async function editFile(sk,fp) {
   else { window.addEventListener('cm-ready', () => requestAnimationFrame(initCM), {once:true}); }
 }
 
-async function delFile(sk,fp) { if(!confirm(`确定删除 ${fp}？`))return; await api.del(`/api/skills/${encodeURIComponent(sk)}/file?dir=${encodeURIComponent(S.currentDir)}&path=${encodeURIComponent(fp)}`);showToast('已删除','success');navigateTo('edit',sk); }
+async function delFile(sk,fp) { if(!confirm(`确定删除 ${fp}？`))return; await api.del(`/api/skills/${encodeURIComponent(sk)}/file?dir=${encodeURIComponent(S.editingSkillDir||S.currentDir)}&path=${encodeURIComponent(fp)}`);showToast('已删除','success');navigateTo('edit',sk); }
 
 function addFile(sk) {
   let cmView = null;
@@ -654,7 +665,7 @@ function addFile(sk) {
       const p = document.getElementById('nfp').value;
       if (!p) { showToast('请填路径','warning'); return; }
       const content = cmView ? cmView.state.doc.toString() : '';
-      await api.put(`/api/skills/${encodeURIComponent(sk)}/file?dir=${encodeURIComponent(S.currentDir)}`, {path: p, content});
+      await api.put(`/api/skills/${encodeURIComponent(sk)}/file?dir=${encodeURIComponent(S.editingSkillDir||S.currentDir)}`, {path: p, content});
       showToast('已创建','success');
       navigateTo('edit', sk);
     }
@@ -678,11 +689,11 @@ function addFile(sk) {
   else { window.addEventListener('cm-ready', () => requestAnimationFrame(() => { initCM(); setupLangDetect(); }), {once:true}); }
 }
 
-function addDir(sk) { showModal('新建目录',`<div class="ant-form-item"><label class="ant-form-label">目录路径</label><input class="ant-input" id="ndp" placeholder="scripts" style="font-family:var(--font-mono)"></div>`,async()=>{const p=document.getElementById('ndp').value;if(!p){showToast('请填路径','warning');return;}await api.post(`/api/skills/${encodeURIComponent(sk)}/directory?dir=${encodeURIComponent(S.currentDir)}`,{path:p});showToast('已创建','success');navigateTo('edit',sk);}); }
+function addDir(sk) { showModal('新建目录',`<div class="ant-form-item"><label class="ant-form-label">目录路径</label><input class="ant-input" id="ndp" placeholder="scripts" style="font-family:var(--font-mono)"></div>`,async()=>{const p=document.getElementById('ndp').value;if(!p){showToast('请填路径','warning');return;}await api.post(`/api/skills/${encodeURIComponent(sk)}/directory?dir=${encodeURIComponent(S.editingSkillDir||S.currentDir)}`,{path:p});showToast('已创建','success');navigateTo('edit',sk);}); }
 
 // ============== Actions ==============
 async function validateAction(name) {
-  const r = await api.post(`/api/skills/${encodeURIComponent(name)}/validate?dir=${encodeURIComponent(S.currentDir)}`);
+  const r = await api.post(`/api/skills/${encodeURIComponent(name)}/validate?dir=${encodeURIComponent(S.editingSkillDir||S.currentDir)}`);
   const a = document.getElementById('valArea');
   if(!a)return;
   let h = `<div class="ant-alert ${r.valid?'ant-alert-success':'ant-alert-error'}">`;
@@ -719,14 +730,26 @@ function deployAction(name) {
     <select class="ant-select" id="deployLevel" onchange="document.getElementById('projDirGroup').style.display=this.value==='project'?'':'none'">
       <option value="user">用户级（全局可用）</option><option value="project">项目级（仅指定项目）</option></select></div>
     <div class="ant-form-item" id="projDirGroup" style="display:none"><label class="ant-form-label">项目目录</label>
-    <input class="ant-input" id="projDir" placeholder="/path/to/project" style="font-family:var(--font-mono)"></div>
+    <div style="display:flex;gap:8px">
+      <select class="ant-select" id="projDirSelect" onchange="if(this.value==='__custom__'){document.getElementById('projDirCustom').style.display='';this.style.display='none'}else{document.getElementById('projDir').value=this.value}" style="flex:1">
+        <option value="">-- 选择已有项目 --</option>
+        ${S.projectDirs.map(d => `<option value="${esc(d.path)}">${esc(d.name)} (${esc(d.path.replace(S.config.homeDir,'~'))})</option>`).join('')}
+        <option value="__custom__">自定义路径...</option>
+      </select>
+      <div id="projDirCustom" style="display:none;flex:1"><input class="ant-input" id="projDir" placeholder="/path/to/project" style="font-family:var(--font-mono)"></div>
+    </div></div>
     <div id="deployActionResult"></div>`,
     async () => {
       const selectedApps = Array.from(document.querySelectorAll('.deploy-target-card.selected')).map(el => el.dataset.app);
       if (!selectedApps.length) { showToast('请至少选择一个目标应用', 'warning'); return; }
       const level = document.getElementById('deployLevel').value;
       const body = { level, sourceDir: S.currentDir, apps: selectedApps };
-      if (level === 'project') body.projectDir = document.getElementById('projDir').value;
+      if (level === 'project') {
+        const sel = document.getElementById('projDirSelect');
+        const projPath = (sel && sel.value && sel.value !== '__custom__') ? sel.value : document.getElementById('projDir')?.value;
+        if (!projPath) { showToast('请选择或输入项目目录', 'warning'); return; }
+        body.projectDir = projPath;
+      }
       const r = await api.post(`/api/skills/${encodeURIComponent(name)}/deploy`, body);
       if (r.results) {
         const resultH = r.results.map(res => `
@@ -745,7 +768,7 @@ function toggleDeployTarget(el) { el.classList.toggle('selected'); }
 
 async function deleteAction(name) {
   if(!confirm(`确定删除技能 "${name}"？此操作不可撤销！`))return;
-  const r = await api.del(`/api/skills/${encodeURIComponent(name)}?dir=${encodeURIComponent(S.currentDir)}`);
+  const r = await api.del(`/api/skills/${encodeURIComponent(name)}?dir=${encodeURIComponent(S.editingSkillDir||S.currentDir)}`);
   if(r.error)showToast(r.error,'error');else{showToast('已删除','success');await refreshSkills();navigateTo('skills');}
 }
 
@@ -845,8 +868,15 @@ async function renderDeployPage() {
       <div class="ant-form-item" id="batchProjDir" style="display:none">
         <label class="ant-form-label">项目目录</label>
         <div style="display:flex;gap:8px">
-          <input class="ant-input" id="batchProjPath" placeholder="/path/to/project" style="font-family:var(--font-mono);font-size:12px">
-          <button class="ant-btn ant-btn-sm" onclick="browseBatchProj()">${IC.folderOpen} 浏览</button>
+          <select class="ant-select" id="batchProjSelect" onchange="if(this.value==='__custom__'){document.getElementById('batchProjCustom').style.display='flex';this.style.display='none'}else{document.getElementById('batchProjPath').value=this.value}" style="flex:1">
+            <option value="">-- 选择已有项目 --</option>
+            ${S.projectDirs.map(d => `<option value="${esc(d.path)}">${esc(d.name)} (${esc(d.path.replace(S.config.homeDir,'~'))})</option>`).join('')}
+            <option value="__custom__">自定义路径...</option>
+          </select>
+          <div id="batchProjCustom" style="display:none;flex:1;gap:8px">
+            <input class="ant-input" id="batchProjPath" placeholder="/path/to/project" style="font-family:var(--font-mono);font-size:12px;flex:1">
+            <button class="ant-btn ant-btn-sm" onclick="browseBatchProj()">${IC.folderOpen} 浏览</button>
+          </div>
         </div>
       </div>
       <button class="ant-btn ant-btn-success ant-btn-lg ant-btn-block" onclick="batchDeploy()" style="margin-top:8px">${IC.rocket} 开始部署</button>
@@ -890,7 +920,10 @@ async function batchDeploy() {
   const selectedApps = Array.from(document.querySelectorAll('.deploy-target-card.selected')).map(el => el.dataset.app);
   if (!selectedApps.length) { showToast('请选择至少一个部署目标', 'warning'); return; }
   const level = document.getElementById('batchLevel').value;
-  const projPath = document.getElementById('batchProjPath')?.value;
+  const batchSel = document.getElementById('batchProjSelect');
+  const projPath = (batchSel && batchSel.value && batchSel.value !== '__custom__' && batchSel.value !== '')
+    ? batchSel.value
+    : document.getElementById('batchProjPath')?.value;
   const resultEl = document.getElementById('deployResult');
   const total = names.length;
   resultEl.innerHTML = `
@@ -940,6 +973,176 @@ async function batchDeploy() {
   resultH += '</div></div>';
   resultEl.innerHTML = resultH;
   showToast(`部署完成: ${successCount} 成功${failCount > 0 ? `, ${failCount} 失败` : ''}`, failCount ? 'warning' : 'success');
+}
+
+// ============== Project Skills ==============
+async function refreshProjectSkills() {
+  try {
+    const d = await api.get('/api/project-skills');
+    S.projectSkills = d.projects || [];
+    const total = S.projectSkills.reduce((sum, p) => sum + (p.totalSkills || 0), 0);
+    document.getElementById('projectSkillCount').textContent = total;
+    // Also fetch project dirs for deploy dropdown
+    const pd = await api.get('/api/project-dirs');
+    S.projectDirs = pd.dirs || [];
+  } catch (e) { S.projectSkills = []; S.projectDirs = []; }
+}
+
+async function renderProjectSkillsPage() {
+  await refreshProjectSkills();
+  const projects = S.projectSkills;
+  const totalSkills = projects.reduce((sum, p) => sum + (p.totalSkills || 0), 0);
+
+  let projectsH = '';
+  if (projects.length === 0) {
+    projectsH = `<div class="empty-state"><div class="icon">${IC.folder}</div><h3>暂无项目技能</h3>
+      <p>通过手动导入或快速扫描添加项目级技能目录</p></div>`;
+  } else {
+    for (const proj of projects) {
+      const shortPath = proj.path.replace(S.config.homeDir, '~');
+      projectsH += `<div class="ant-card project-skill-card" style="margin-bottom:16px">
+        <div class="ant-card-body">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div class="stat-icon purple" style="width:40px;height:40px;font-size:18px;border-radius:var(--radius-lg)">${IC.folder}</div>
+              <div>
+                <div style="font-size:15px;font-weight:600">${esc(proj.name)}</div>
+                <div style="font-size:12px;color:var(--text-tertiary);font-family:var(--font-mono)">${esc(shortPath)}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="ant-tag ant-tag-purple">${proj.totalSkills} 个技能</span>
+              <button class="ant-btn ant-btn-sm ant-btn-danger" onclick="removeProjectDir('${esc(proj.path)}')">${IC.delete} 移除</button>
+            </div>
+          </div>`;
+
+      for (const sub of (proj.skillSubDirs || [])) {
+        const appTarget = S.deployTargets[sub.appId] || {};
+        projectsH += `<div style="margin-bottom:12px">
+          <div style="font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            <span>${appTarget.icon || IC.puzzle}</span> ${esc(appTarget.name || sub.appName)}
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary)">${sub.skillsDir.replace(S.config.homeDir, '~')}</span>
+          </div>
+          <div class="skills-grid">${sub.skills.map(s => projectSkillCard(s, sub.skillsDir)).join('')}</div>
+        </div>`;
+      }
+      projectsH += '</div></div>';
+    }
+  }
+
+  document.getElementById('mainContent').innerHTML = `
+    <div style="display:flex;gap:16px;margin-bottom:20px">
+      <div class="stat-card" style="flex:1"><div class="stat-icon purple">${IC.folder}</div><div><div class="stat-value">${projects.length}</div><div class="stat-label">项目数量</div></div></div>
+      <div class="stat-card" style="flex:1"><div class="stat-icon blue">${IC.puzzle}</div><div><div class="stat-value">${totalSkills}</div><div class="stat-label">项目技能总数</div></div></div>
+    </div>
+    <div class="toolbar">
+      <div class="section-title" style="margin:0">${IC.folder} 项目级技能</div>
+      <div style="display:flex;gap:8px">
+        <button class="ant-btn" onclick="importProjectDir()">${IC.folderOpen} 导入目录</button>
+        <button class="ant-btn ant-btn-primary" onclick="scanProjectSkillsUI()">${IC.search} 快速扫描</button>
+      </div>
+    </div>
+    <p style="color:var(--text-secondary);margin-bottom:20px;font-size:13px">
+      项目级技能位于项目目录下的 <code>.codebuddy/skills</code>、<code>.workbuddy/skills</code> 或 <code>.claude/rules</code> 中，仅在该项目内生效。
+    </p>
+    <div id="projectSkillsList">${projectsH}</div>`;
+}
+
+function projectSkillCard(s, skillsDir) {
+  const encodedDir = encodeURIComponent(skillsDir);
+  return `<div class="skill-card" onclick="navigateTo('detail','${s.dirName}','${encodedDir}')" style="cursor:pointer">
+    <div class="skill-card-header"><div class="skill-card-icon" style="background:linear-gradient(135deg, var(--purple), var(--accent))">${IC.puzzle}</div>
+    <span class="ant-tag ant-tag-purple">项目级</span></div>
+    <div class="skill-card-name">${esc(s.displayName)}</div>
+    <div class="skill-card-desc">${esc(s.description_zh||s.description)}</div>
+    <div class="skill-card-meta"><span>${IC.file} ${s.fileCount} 文件</span><span>${IC.save} ${fmtSize(s.size)}</span><span>${IC.eye} ${fmtDate(s.modifiedAt)}</span></div></div>`;
+}
+
+async function importProjectDir() {
+  let curPath = S.config.homeDir || '/';
+  const browse = async (p) => {
+    try {
+      const el = document.getElementById('importDirBrowserContent');
+      if (el) el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-tertiary)">加载中...</div>`;
+      const d = await api.post('/api/browse', {path: p});
+      if (d.error) { if (el) el.innerHTML = `<div style="color:var(--danger);padding:12px">${IC.warning} ${esc(d.error)}</div>`; return; }
+      curPath = d.current;
+      let h = `<div class="dir-browser"><div class="dir-browser-header"><span>${IC.folderOpen}</span>
+        <input value="${esc(d.current)}" id="importDirInput" onkeydown="if(event.key==='Enter'){updateImportBrowser(this.value)}" style="font-family:var(--font-mono);font-size:12px;flex:1;border:none;background:transparent;color:var(--text);outline:none"></div>`;
+      if (d.parent !== d.current) h += `<div class="dir-item" onclick="updateImportBrowser('${d.parent}')">${IC.folder} ..</div>`;
+      for (const it of (d.items || [])) h += `<div class="dir-item" onclick="updateImportBrowser('${it.path}')">${IC.folder} ${esc(it.name)}</div>`;
+      h += '</div>';
+      if (el) el.innerHTML = h;
+    } catch (e) {
+      const el = document.getElementById('importDirBrowserContent');
+      if (el) el.innerHTML = `<div style="color:var(--danger);padding:12px">${IC.warning} 加载失败: ${esc(e.message)}</div>`;
+    }
+  };
+  window.updateImportBrowser = async (p) => { await browse(p); };
+  showModal('导入项目目录', `<p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px">选择任意项目目录，之后可向其中创建和部署技能</p><div id="importDirBrowserContent">加载中...</div>`,
+    async () => {
+      const input = document.getElementById('importDirInput');
+      const dirPath = input ? input.value : curPath;
+      try {
+        const r = await api.post('/api/project-skills/add', { path: dirPath });
+        if (r.error) { showToast(r.error, 'error'); return; }
+        showToast(r.message, 'success');
+        renderProjectSkillsPage();
+      } catch (e) { showToast('导入失败: ' + e.message, 'error'); }
+    });
+  await browse(curPath);
+}
+
+async function scanProjectSkillsUI() {
+  let curPath = S.config.homeDir || '/';
+  const browse = async (p) => {
+    try {
+      const el = document.getElementById('scanDirBrowserContent');
+      if (el) el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-tertiary)">加载中...</div>`;
+      const d = await api.post('/api/browse', {path: p});
+      if (d.error) { if (el) el.innerHTML = `<div style="color:var(--danger);padding:12px">${IC.warning} ${esc(d.error)}</div>`; return; }
+      curPath = d.current;
+      let h = `<div class="dir-browser"><div class="dir-browser-header"><span>${IC.folderOpen}</span>
+        <input value="${esc(d.current)}" id="scanDirInput" onkeydown="if(event.key==='Enter'){updateScanBrowser(this.value)}" style="font-family:var(--font-mono);font-size:12px;flex:1;border:none;background:transparent;color:var(--text);outline:none"></div>`;
+      if (d.parent !== d.current) h += `<div class="dir-item" onclick="updateScanBrowser('${d.parent}')">${IC.folder} ..</div>`;
+      for (const it of (d.items || [])) h += `<div class="dir-item" onclick="updateScanBrowser('${it.path}')">${IC.folder} ${esc(it.name)}</div>`;
+      h += '</div>';
+      if (el) el.innerHTML = h;
+    } catch (e) {
+      const el = document.getElementById('scanDirBrowserContent');
+      if (el) el.innerHTML = `<div style="color:var(--danger);padding:12px">${IC.warning} 加载失败: ${esc(e.message)}</div>`;
+    }
+  };
+  window.updateScanBrowser = async (p) => { await browse(p); };
+  showModal('快速扫描项目技能', `<p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px">选择一个根目录，系统将递归扫描其子目录中的所有项目级技能</p><div id="scanDirBrowserContent">加载中...</div><div id="scanResultArea" style="margin-top:12px"></div>`,
+    async () => {
+      const input = document.getElementById('scanDirInput');
+      const scanPath = input ? input.value : curPath;
+      document.getElementById('scanResultArea').innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-tertiary)">${IC.search} 正在扫描...</div>`;
+      try {
+        const r = await api.post('/api/project-skills/scan', { path: scanPath });
+        if (r.error) { showToast(r.error, 'error'); return; }
+        showToast(r.message, 'success');
+        renderProjectSkillsPage();
+      } catch (e) { showToast('扫描失败: ' + e.message, 'error'); }
+    });
+  await browse(curPath);
+}
+
+async function removeProjectDir(dirPath) {
+  const dirName = dirPath.split('/').pop();
+  if (!confirm(`确定移除项目 "${dirName}" 的技能管理？\n（不会删除实际文件）`)) return;
+  try {
+    const result = await fetch('/api/project-skills/remove', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: dirPath })
+    });
+    const data = await result.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    showToast(data.message, 'success');
+    renderProjectSkillsPage();
+  } catch (e) { showToast('移除失败: ' + e.message, 'error'); }
 }
 
 // ============== Dir Browser ==============
